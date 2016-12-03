@@ -1,0 +1,243 @@
+//-----------------------------------
+// DijkstraAnalyzer.hpp
+//-----------------------------------
+#ifndef DIJKSTRAANALYZER_HPP_
+#define DIJKSTRAANALYZER_HPP_
+
+#include <deque>
+#include <vector>
+
+typedef std::deque<int> Path;
+typedef std::vector<std::deque<int>> PathList;// 用于记录到每个点的路径
+
+struct DijkstraAnalyzer
+{
+	DijkstraAnalyzer();
+	~DijkstraAnalyzer();
+	void SetData(float ** mat, int n);
+	void SetData(float * mat, int n);
+	void GetPriorStep(int v0);
+	PathList GetPaths() const;
+
+	bool * visited;
+	float * distance;
+	int * priorStep;
+	float ** adjMat;
+	float MAX;
+	int n;
+	int v0;
+};
+
+DijkstraAnalyzer::DijkstraAnalyzer()
+	: visited(nullptr)
+	, distance(nullptr)
+	, priorStep(nullptr)
+	, adjMat(nullptr)
+	, n(0)
+	, v0(0)
+{
+}
+
+void DijkstraAnalyzer::SetData(float ** mat, int n)
+{
+	this->n = n;
+	this->MAX = mat[0][0];
+	if (adjMat)
+	{
+		for (int i = 0; i < n; i++)
+		{
+			free(adjMat[i]);
+		}
+		free(adjMat);
+	}
+	adjMat = (float **)malloc(sizeof(float *) * n);
+	for (int i = 0; i < n; i++)
+	{
+		adjMat[i] = (float *)malloc(sizeof(float) * n);
+		for (int j = 0; j < n; j++)
+		{
+			adjMat[i][j] = mat[i][j];
+			if (mat[i][j] > this->MAX)
+			{
+				MAX = mat[i][j];
+			}
+		}
+	}
+	
+	if (visited)
+	{
+		free(visited);
+	}
+	visited = (bool *)malloc(sizeof(bool) * n);
+	for (int i = 0; i < n; i++)
+		visited[i] = 0;
+
+	if (distance)
+	{
+		free(distance);
+	}
+	distance = (float *)malloc(sizeof(float) * n);
+
+	if (priorStep)
+	{
+		free(priorStep);
+	}
+	priorStep = (int *)malloc(sizeof(int) * n);
+}
+
+void DijkstraAnalyzer::SetData(float * mat, int n)
+{
+	this->n = n;
+	this->MAX = mat[0];
+	if (adjMat)
+	{
+		for (int i = 0; i < n; i++)
+		{
+			free(adjMat[i]);
+		}
+		free(adjMat);
+	}
+	adjMat = (float **)malloc(sizeof(float *) * n);
+	for (int i = 0; i < n; i++)
+	{
+		adjMat[i] = (float *)malloc(sizeof(float) * n);
+		for (int j = 0; j < n; j++)
+		{
+			adjMat[i][j] = *mat;
+			if (*mat > this->MAX)
+			{
+				MAX = *mat;
+			}
+			++mat;
+		}
+	}
+	
+	if (visited)
+	{
+		free(visited);
+	}
+	visited = (bool *)malloc(sizeof(bool) * n);
+	for (int i = 0; i < n; i++)
+		visited[i] = 0;
+
+	if (distance)
+	{
+		free(distance);
+	}
+	distance = (float *)malloc(sizeof(float) * n);
+
+	if (priorStep)
+	{
+		free(priorStep);
+	}
+	priorStep = (int *)malloc(sizeof(int) * n);
+}
+
+void DijkstraAnalyzer::GetPriorStep(int v0)
+{
+	for (int i = 0; i < n; i++)
+		visited[i] = 0;
+	this->v0 = v0;
+	for (int i = 0; i < n; i++)
+	{
+		distance[i] = adjMat[v0][i];
+		priorStep[i] = v0;
+	}
+	visited[v0] = true;
+	for (int i = 1; i < n; i++)
+	{
+		float min = MAX;// 用于记录到v0的最小距离
+		int u = v0;// 用于记录距离v0最近的点的下标
+		for (int j = 0; j < n; j++)
+		{
+			if(visited[j] == false && distance[j] < min)
+			{
+				min = distance[j];
+				u = j;
+			}
+		}
+		visited[u] = true;// 选出了距离v0最近的点，记为已访问
+		for (int j = 0; j < n; j++)// 转跳到u所在行
+		{
+			if(visited[j] == false && adjMat[u][j] < MAX && min + adjMat[u][j] < distance[j])
+			{
+				distance[j] = min + adjMat[u][j];
+				priorStep[j] = u; 
+			}
+		}
+	}
+}
+
+PathList DijkstraAnalyzer::GetPaths() const
+{
+	PathList paths(n);
+	for (int i = 0; i < n; i++)
+	{
+		if (distance[i] == MAX)
+		{
+			continue;
+		}
+		paths[i].push_front(priorStep[i]);
+		while (paths[i].front() != v0)
+		{
+			paths[i].push_front(priorStep[paths[i].front()]);
+		}
+		paths[i].push_back(i);
+	}
+	return paths;
+}
+
+DijkstraAnalyzer::~DijkstraAnalyzer()
+{
+	if (!adjMat)
+	{
+		return;
+	}
+	for (int i = 0; i < n; i++)
+	{
+		free(adjMat[i]);
+	}
+	free(adjMat);
+	free(visited);
+	free(priorStep);
+	free(distance);
+}
+
+#endif
+
+
+//-----------------------------------
+// test.cpp
+//-----------------------------------
+#include <iostream>
+#include "DijkstraAnalyzer.hpp"
+#define MAX 1000
+
+int main()
+{
+	float source[6][6] = 
+	{
+		MAX, MAX, 10, MAX, 30, 100,
+		MAX, MAX, 5, MAX, MAX, MAX,
+		MAX, MAX, MAX, 50, MAX, MAX,
+		MAX, MAX, MAX, MAX, MAX, 10,
+		MAX, MAX, MAX, 20, MAX, 60,
+		MAX, MAX, MAX, MAX, MAX, MAX
+	};
+
+	DijkstraAnalyzer da;
+	da.SetData(*source, 6);
+	da.GetPriorStep(0);
+	PathList paths = da.GetPaths();
+	for (unsigned i = 0; i < paths.size(); i++)
+	{
+		for (unsigned j = 0; j < paths[i].size(); j++)
+		{
+			std::cout << paths[i][j] << " ";
+		}
+		if (!paths[i].empty())
+			std::cout << "Length = " << da.distance[i] << std::endl;
+	}
+
+	return 0;
+}
